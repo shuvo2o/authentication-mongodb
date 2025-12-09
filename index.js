@@ -43,6 +43,22 @@ async function run() {
             }
             
         })
+        // get all users 
+        app.get("/users", async(req, res)=> {
+            try {
+                const users = await usersCollection.find().toArray();
+                res.json({
+                    message: "Get all users",
+                    users
+                })
+                
+            } catch (error) {
+                res.status(500).json({
+                    message: "Failed to get user",
+                    error: error.message
+                })
+            }
+        })
 
         // Ping MongoDB
         await client.db("admin").command({ ping: 1 });
