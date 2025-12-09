@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const app = express();
 const { ObjectId } = require('mongodb');
 const { MongoClient, ServerApiVersion } = require('mongodb');
@@ -32,9 +33,24 @@ async function run() {
 
         // register user
         app.post("/register" ,async(req , res )=>{
+            const { name,email, password} = req.body;
+            const hasedPassword = await bcrypt.hash(password, 10)
+            console.log(hasedPassword)
             try {
-                const newUser = await usersCollection.insertOne({...req.body, role: "user"})
-                res.status(201).send(newUser)
+                const existingUser = await usersCollection.findOne({ email});
+                if (existingUser) return res.status(400).json({ message: "User already exists"})
+                const newUser = {
+                    name,
+                    email,
+                    password: hasedPassword,
+                    role: "user",
+                    createdAt :new Date()
+                }
+                const result = await usersCollection.insertOne(newUser);
+                res.status(201).json({
+                    message: "User registered succesfullty",
+                    result
+                })
             } catch (error) {
                 res.status(500).json({
                     message: "Failed to register user",
@@ -46,7 +62,7 @@ async function run() {
         // get all users 
         app.get("/users", async(req, res)=> {
             try {
-                const users = await usersCollection.find().toArray();
+                const users = await usersCollection.find({}, {projection: {password:0}}). toArray();
                 res.json({
                     message: "Get all users",
                     users
