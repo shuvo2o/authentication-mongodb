@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 const { ObjectId } = require('mongodb');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const { verifyToken } = require('./middleware/authMiddleware');
 require('dotenv').config();
 
 const port = process.env.PORT || 3000;
@@ -66,12 +67,12 @@ async function run() {
             const { email, password } = req.body;
             try {
                 const userExists = await usersCollection.findOne({ email })
-               
+
                 if (!userExists) return res.status(404).json({ message: "User not found" })
 
                 const isPasswordValid = await bcrypt.compare(password, userExists.password)
                 if (!isPasswordValid) return res.status(401).json({ message: "Invalid password" })
-                const token = jwt.sign({userId: userExists._id, role:userExists.role}, process.env.JWT_SECRET_KEY,{expiresIn: 60*60})
+                const token = jwt.sign({ userId: userExists._id, role: userExists.role }, process.env.JWT_SECRET_KEY, { expiresIn: 60 * 60 })
                 res.json({ message: "Login succesful", token })
             } catch (error) {
                 res.status(500).json({
@@ -98,21 +99,32 @@ async function run() {
         })
 
         // get transaction history by email
-        app.get("/transactions/:email", async(req, res)=>{
-            const {email} = req.params;
+        app.get("/transactions/:email", verifyToken, async (req, res) => {
+            console.log("User Come from middleware", req.user)
+            const { email } = req.params;
+
             try {
-                const user = await transactionsCollection.findOne({email});
-                if(!user) return res.status(500).json({message: "User and order not found"})
-                    res.json({
-                message: "Get user transaction history",
-            user})
+                const user = await transactionsCollection
+                    .find({ email })
+                    .toArray();
+
+                if (user.length === 0) {
+                    return res.status(404).json({ message: "User and order not found" });
+                }
+
+                res.json({
+                    message: "Get user transaction history",
+                    user
+                });
+
             } catch (error) {
                 res.status(500).json({
                     message: "Failed to get user",
                     error: error.message
-                })
+                });
             }
-        })
+        });
+
 
         // Ping MongoDB
         await client.db("admin").command({ ping: 1 });
