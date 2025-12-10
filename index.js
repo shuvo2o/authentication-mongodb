@@ -31,7 +31,7 @@ async function run() {
         // Connect to DB and Collection
         const db = client.db("auth-management");
         const usersCollection = db.collection("users");
-
+        const transactionsCollection = db.collection("transactions");
         // register user
         app.post("/register", async (req, res) => {
             const { name, email, password } = req.body;
@@ -89,6 +89,23 @@ async function run() {
                     users
                 })
 
+            } catch (error) {
+                res.status(500).json({
+                    message: "Failed to get user",
+                    error: error.message
+                })
+            }
+        })
+
+        // get transaction history by email
+        app.get("/transactions/:email", async(req, res)=>{
+            const {email} = req.params;
+            try {
+                const user = await transactionsCollection.findOne({email});
+                if(!user) return res.status(500).json({message: "User and order not found"})
+                    res.json({
+                message: "Get user transaction history",
+            user})
             } catch (error) {
                 res.status(500).json({
                     message: "Failed to get user",
